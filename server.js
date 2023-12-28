@@ -40,9 +40,17 @@ const SELECTORS = {
 const PNR_NOT_AVAILABLE = ['Annulé', 'Remboursé']
 
 async function launchBrowser() {
-    ENVIRONMENT_TYPE === 'test'
-        ? await chromium.launch({ headless: false })
-        : await chromium.launch({ headless: true })
+    try {
+        if (ENVIRONMENT_TYPE === 'test') {
+            return await chromium.launch({ headless: false })
+        } else {
+            return await chromium.launch({ headless: true })
+        }
+    } catch (err) {
+        return res.status(404).json({
+            error: err.message
+        })
+    }
 }
 
 app.post('/send', async (req, res) => {
@@ -67,11 +75,18 @@ app.post('/send', async (req, res) => {
     }
 
     async function login(page) {
-        await page.goto(LOGIN_URL);
-        await page.type('#login', username);
-        await page.type('#pwd', password);
-        await page.type('#LoginCompanyIdentificationCode', companyCode);
-        await page.click('#signInButton');
+        try {
+            await page.goto(LOGIN_URL);
+            await page.type('#login', username);
+            await page.type('#pwd', password);
+            await page.type('#LoginCompanyIdentificationCode', companyCode);
+            await page.click('#signInButton');
+        } catch (error) {
+            return res.status(500).json({
+                message: "Error while logging in",
+                error: error.message
+            })
+        }
     }
 
     async function sendPnrPDFMail(page) {
@@ -131,23 +146,33 @@ app.post('/send', async (req, res) => {
             const PNRHasBeen = await sendPnrPDFMail(page);
 
             if (PNRHasBeen === 'cancelled') {
-                return res.status(404).json({ status: 'cancelled', pnrNumber });
+                return res.status(404).json({
+                    result: 0,
+                    message: 'PNR has been cancelled',
+                    pnrNumber: pnrNumber
+                });
             } else {
                 const ReceiptHasBeen = await sendReceiptPnrMail(page)
-                if (PNRHasBeen === 'available') {
+                if (PNRHasBeen === 'available' && ReceiptHasBeen === 'available') {
                     return res.status(200).json({
-                        message: 'PNR has been successfully send',
-                        pnrNumber: pnrNumber,
-                        email: EMAIL_RECIPIENT
-                    });
-                }
-                if (ReceiptHasBeen === 'available') {
-                    return res.status(200).json({
-                        message: 'Receipt has been successfully sent',
+                        result: 2,
+                        message: 'PNR and Receipt has been successfully send',
                         pnrNumber: pnrNumber,
                         email: EMAIL_RECIPIENT
                     })
+                } else {
+                    if (ReceiptHasBeen === 'available') {
+                        return res.status(200).json({
+                            result: 1,
+                            message: 'Receipt has been successfully sent',
+                            pnrNumber: pnrNumber,
+                            email: EMAIL_RECIPIENT
+                        })
+                    }
                 }
+
+
+
             }
         } catch (error) {
             return res.status(500).json({ error: `Failed to send email: ${error.message}` });
