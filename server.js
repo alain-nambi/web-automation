@@ -19,7 +19,13 @@ const LOGIN_URL = process.env.LOGIN_URL;
 const USERNAME_EWA = process.env.USERNAME_EWA;
 const PASSWORD_EWA = process.env.PASSWORD_EWA;
 const COMPANY_CODE = process.env.COMPANY_CODE;
-const EMAIL_RECIPIENT = process.env.EMAIL_RECIPIENT;
+
+let EMAIL_RECIPIENT;
+if (ENVIRONMENT_TYPE === 'test') {
+    EMAIL_RECIPIENT = process.env.EMAIL_RECIPIENT_TEST;
+} else {
+    EMAIL_RECIPIENT = process.env.EMAIL_RECIPIENT_PROD
+}
 
 // Constantes pour les sélecteurs DOM
 const SELECTORS = {
